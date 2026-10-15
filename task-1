@@ -1,0 +1,218 @@
+import random
+import math
+
+# Creditworthiness Prediction Project
+random.seed(42)
+
+
+# 1. Generate sample financial dataset
+def generate_dataset(size):
+    data = []
+
+    for _ in range(size):
+        income = random.randint(15000, 150000)
+        debt = random.randint(0, 80000)
+        payments = random.randint(0, 12)
+        history = random.randint(0, 20)
+        loans = random.randint(0, 5)
+
+        ratio = debt / income
+
+        score = (
+            0.8 * payments / 12
+            + 0.5 * history / 20
+            + 0.3 * income / 150000
+            - 0.8 * ratio
+            - 0.08 * loans
+        )
+
+        label = 1 if score > 0.45 else 0
+
+        data.append({
+            "income": income,
+            "debt": debt,
+            "payments": payments,
+            "history": history,
+            "loans": loans,
+            "ratio": ratio,
+            "label": label
+        })
+
+    return data
+
+
+# 2. Logistic Regression-style prediction
+def logistic_prediction(person):
+    score = (
+        0.8 * person["payments"] / 12
+        + 0.5 * person["history"] / 20
+        + 0.3 * person["income"] / 150000
+        - 0.8 * person["ratio"]
+        - 0.08 * person["loans"]
+    )
+
+    probability = 1 / (
+        1 + math.exp(-5 * (score - 0.45))
+    )
+
+    prediction = 1 if probability >= 0.5 else 0
+
+    return prediction, probability
+
+
+# 3. Decision Tree prediction rule
+def decision_tree_prediction(person):
+    if person["payments"] >= 9 and person["ratio"] < 0.5:
+        return 1
+    elif person["payments"] >= 6 and person["ratio"] < 0.25:
+        return 1
+    elif person["history"] >= 10 and person["ratio"] < 0.2:
+        return 1
+    else:
+        return 0
+
+
+# 4. Random Forest prediction rule
+def random_forest_prediction(person):
+    votes = [
+        int(person["payments"] >= 8 and person["ratio"] < 0.4),
+        int(person["income"] >= 40000 and person["loans"] <= 2),
+        int(person["history"] >= 5 and person["ratio"] < 0.3)
+    ]
+
+    return 1 if sum(votes) >= 2 else 0
+
+
+# 5. Calculate performance metrics
+def evaluate(actual, predicted):
+    tp = tn = fp = fn = 0
+
+    for a, p in zip(actual, predicted):
+        if a == 1 and p == 1:
+            tp += 1
+        elif a == 0 and p == 0:
+            tn += 1
+        elif a == 0 and p == 1:
+            fp += 1
+        else:
+            fn += 1
+
+    total = len(actual)
+
+    accuracy = (tp + tn) / total if total else 0
+    precision = tp / (tp + fp) if tp + fp else 0
+    recall = tp / (tp + fn) if tp + fn else 0
+
+    f1 = (
+        2 * precision * recall / (precision + recall)
+        if precision + recall else 0
+    )
+
+    return accuracy, precision, recall, f1
+
+
+# 6. Main program
+def main():
+    print("=" * 45)
+    print(" CREDITWORTHINESS PREDICTION SYSTEM")
+    print("=" * 45)
+
+    dataset = generate_dataset(200)
+    random.shuffle(dataset)
+
+    split = int(len(dataset) * 0.8)
+    train_data = dataset[:split]
+    test_data = dataset[split:]
+
+    actual = [person["label"] for person in test_data]
+
+    print("\nTotal records:", len(dataset))
+    print("Training records:", len(train_data))
+    print("Testing records:", len(test_data))
+
+    # Compare prediction approaches
+    models = [
+        ("Logistic Regression", logistic_prediction),
+        ("Decision Tree", decision_tree_prediction),
+        ("Random Forest", random_forest_prediction)
+    ]
+
+    print("\nMODEL PERFORMANCE")
+    print("-" * 45)
+
+    for name, function in models:
+        predictions = []
+
+        for person in test_data:
+            if name == "Logistic Regression":
+                prediction, probability = function(person)
+            else:
+                prediction = function(person)
+
+            predictions.append(prediction)
+
+        metrics = evaluate(actual, predictions)
+
+        print("\nModel:", name)
+        print("Accuracy : {:.2f}%".format(metrics[0] * 100))
+        print("Precision: {:.2f}%".format(metrics[1] * 100))
+        print("Recall   : {:.2f}%".format(metrics[2] * 100))
+        print("F1-Score : {:.2f}%".format(metrics[3] * 100))
+
+    # Get new individual's information
+    print("\n" + "=" * 45)
+    print("ENTER FINANCIAL DETAILS")
+    print("=" * 45)
+
+    try:
+        income = float(input("Annual income: "))
+        debt = float(input("Total debt: "))
+        payments = int(input("On-time payments (0-12): "))
+        history = int(input("Credit history years: "))
+        loans = int(input("Existing loans: "))
+
+        if income <= 0:
+            raise ValueError("Income must be greater than zero.")
+
+        if debt < 0:
+            raise ValueError("Debt cannot be negative.")
+
+        if not 0 <= payments <= 12:
+            raise ValueError("Payments must be between 0 and 12.")
+
+        if not 0 <= history <= 100 or not 0 <= loans <= 100:
+            raise ValueError("Invalid history or loan count.")
+
+        person = {
+            "income": income,
+            "debt": debt,
+            "payments": payments,
+            "history": history,
+            "loans": loans,
+            "ratio": debt / income
+        }
+
+        prediction, probability = logistic_prediction(person)
+
+        print("\nPREDICTION RESULT")
+        print("-" * 45)
+        print("Debt-to-income ratio: {:.2f}%".format(
+            person["ratio"] * 100
+        ))
+        print("Illustrative probability: {:.2f}%".format(
+            probability * 100
+        ))
+
+        if prediction == 1:
+            print("Result: Creditworthy")
+        else:
+            print("Result: Not creditworthy")
+
+    except ValueError as error:
+        print("\nInput error:", error)
+
+    print("\nProgram completed.")
+
+
+if __name__ == "__main__":
+    main()
